@@ -1,0 +1,63 @@
+package org.firstinspires.ftc.teamcode.relicRecovery.main.teleOps.api.lift;
+
+import com.qualcomm.robotcore.hardware.DcMotor;
+
+import org.firstinspires.ftc.teamcode.relicRecovery.main.hardware.LiftHardwareMethods;
+
+/**
+ * Created by David on 10/16/2017.
+ */
+
+public class LiftPositionChanging {
+    LiftHardwareMethods lift;
+
+    LiftPositions liftPosition;
+
+    boolean manual = false;
+    boolean forcedManual = false;
+
+    @Deprecated
+    public LiftPositionChanging(){}
+
+    public LiftPositionChanging(LiftHardwareMethods lift) {
+        this.lift = lift;
+        liftPosition = LiftPositions.DOWN;
+    }
+
+    void forceManual(){
+        manual = true;
+        forcedManual = true;
+    }
+
+    public void dontForceManual(){
+        forcedManual = false;
+    }
+
+    public void power(boolean verticalDump, double manualPower, double manualThreshold, boolean downButtonPressed, boolean row1ButtonPressed, boolean row2ButtonPressed, boolean row3ButtonPressed, boolean row4ButtonPressed){
+
+        boolean manualThresholdIsMet = Math.abs(manualPower) >= manualThreshold;
+
+        manual = manualThresholdIsMet || forcedManual;
+
+        if(manual){
+            liftPosition = LiftPositions.MANUAL_LEFTOVER;
+            lift.setLiftRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            lift.powerLift(manualThresholdIsMet ? manualPower : 0.0);
+        }
+
+        else{
+
+            // assigns lift position based of user input
+            liftPosition = downButtonPressed ? LiftPositions.DOWN : row1ButtonPressed ? LiftPositions.ROW1 : row2ButtonPressed ? LiftPositions.ROW2 : row3ButtonPressed ? LiftPositions.ROW3 : row4ButtonPressed ? LiftPositions.ROW4 : liftPosition;
+
+            // checks if it just got off manual control - if so lift stops - if not set target counts and power
+            if (liftPosition == LiftPositions.MANUAL_LEFTOVER)
+                lift.powerLift(0.0);
+            else{
+                lift.setLiftRunMode(DcMotor.RunMode.RUN_TO_POSITION);
+                lift.setLiftTargetCounts(verticalDump ? liftPosition.verticalCounts : liftPosition.horizontalCounts);
+                lift.powerLift(1.0);
+            }
+        }
+    }
+}

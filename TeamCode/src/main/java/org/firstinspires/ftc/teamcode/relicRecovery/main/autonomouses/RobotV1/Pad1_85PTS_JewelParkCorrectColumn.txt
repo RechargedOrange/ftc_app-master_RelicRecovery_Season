@@ -1,0 +1,258 @@
+package org.firstinspires.ftc.teamcode.relicRecovery.main.autonomouses.RobotV1;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.util.Range;
+import com.vuforia.VuMarkTemplate;
+
+import org.firstinspires.ftc.robotcore.external.ClassFactory;
+import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
+import org.firstinspires.ftc.robotcore.external.navigation.RelicRecoveryVuMark;
+import org.firstinspires.ftc.robotcore.external.navigation.VuMarkInstanceId;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
+import org.firstinspires.ftc.teamcode.relicRecovery.Alliance;
+import org.firstinspires.ftc.teamcode.relicRecovery.main.hardware.ControlDirection;
+import org.firstinspires.ftc.teamcode.relicRecovery.main.hardware.HardwareClass;
+
+/**
+ * Created by David on 10/23/2017.
+ */
+
+//@Autonomous(name = "Pad1_85PTS_JewelParkCorrectColumn")
+@Disabled
+
+public class Pad1_85PTS_JewelParkCorrectColumn extends LinearOpMode {
+
+    public static final String TAG = "Vuforia VuMark Sample";
+
+    OpenGLMatrix lastLocation = null;
+    /**
+     * {@link #vuforia} is the variable we will use to store our instance of the Vuforia
+     * localization engine.
+     */
+    VuforiaLocalizer vuforia;
+    VuforiaTrackable relicTemplate;
+    RelicRecoveryVuMark vuMark;
+
+    HardwareClass hardwareClass;
+
+    int countsToColumn = 0;
+
+    //int bringBallKnockerUpCounts = 0;
+
+    boolean correctBallForward = false;
+
+    @Override
+    public void runOpMode() throws InterruptedException {
+
+        /**
+         * initialize hardware
+         */
+
+        hardwareClass = new HardwareClass(this);
+
+        hardwareClass.init(true);
+
+        hardwareClass.controlDirection = ControlDirection.FORWARD;
+
+
+        initVuforia();
+
+        /**
+         * Input alliance
+         */
+        while (!isStarted() && opModeIsActive()) {
+            telemetry.addData("", "Press A for red alliance");
+            telemetry.addData("", "Press B for blue alliance");
+            telemetry.addData("", "Alliance = " + hardwareClass.alliance == null ? "null" : hardwareClass.alliance.name());
+            telemetry.addData("", hardwareClass.alliance == null ? "Input alliance before finalizing" : "Press x to finalize");
+            telemetry.update();
+            if (gamepad1.x && hardwareClass.alliance != null)
+                break;
+
+            if(gamepad1.a)
+                hardwareClass.alliance = Alliance.RED;
+            if(gamepad1.b)
+                hardwareClass.alliance = Alliance.BLUE;
+        }
+
+        waitForStart();
+
+        checkVuMark();
+
+        jewels();
+
+        sleep(500);
+
+        vuMark = RelicRecoveryVuMark.RIGHT;
+
+        countsToColumn = vuMark == RelicRecoveryVuMark.RIGHT ? 1920 : vuMark == RelicRecoveryVuMark.CENTER ? 2640 : vuMark == RelicRecoveryVuMark.LEFT ? 3360 : 0;
+
+        if(countsToColumn == 0)
+            while(opModeIsActive()) idle();
+
+        /*
+        if (!correctBallForward)
+            countsToColumn += 0;
+        driveToColumn(0.1);
+
+        sleep(500);
+
+        */
+
+        /*
+        if(hardwareClass.alliance == Alliance.RED){
+            hardwareClass.powerRight(0.5);
+        }else{
+            hardwareClass.powerLeft(0.5);
+        }
+
+        while(opModeIsActive() && Math.abs(hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZXY, AngleUnit.DEGREES).firstAngle) < 80){
+            idle();
+        }
+
+        hardwareClass.powerLeft(0.0);
+        hardwareClass.powerRight(0.0);
+        idle();
+
+        sleep(100);
+
+        processBox();
+        */
+    }
+
+    void processBox() {
+
+    }
+
+    void checkVuMark() {
+        for(int i = 0; i<5; i++){
+            vuMark = RelicRecoveryVuMark.from(relicTemplate);
+            if(vuMark != null)
+                break;
+            if(!opModeIsActive())
+                break;
+        }
+    }
+
+    void jewels() {
+        //hardwareClass.rightBallKnocker.setPosition(hardwareClass.rightBallKnockerDownDelta);
+
+        sleep(2000);
+
+        //correctBallForward = hardwareClass.alliance == Alliance.RED ? hardwareClass.rightBallColorChecker.red() > hardwareClass.rightBallColorChecker.blue() : hardwareClass.rightBallColorChecker.red() < hardwareClass.rightBallColorChecker.blue();
+
+        double power = 0.1;
+        double leftPower;
+        double rightPower;
+
+        if(!correctBallForward)
+            power = -power;
+
+
+        leftPower = power;
+        rightPower = -power;
+
+        hardwareClass.powerLeft(leftPower);
+        hardwareClass.powerRight(rightPower);
+
+        {
+            float heading = 0;
+            while (Math.abs(heading) < 20 && opModeIsActive()) {
+                heading = hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+                idle();
+            }
+        }
+
+        hardwareClass.powerLeft(0.0);
+        hardwareClass.powerRight(0.0);
+
+        //hardwareClass.rightBallKnocker.setPosition(hardwareClass.rightBallKnockerUpDelta);
+
+        sleep(1000);
+
+        hardwareClass.powerLeft(-leftPower);
+        hardwareClass.powerRight(-rightPower);
+
+        {
+            float heading = hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZXZ, AngleUnit.DEGREES).firstAngle;
+            if(correctBallForward)
+                while(heading < 0 && opModeIsActive()){
+                    heading = hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+                    idle();
+                }
+            else {
+                while (heading > 0 && opModeIsActive()) {
+                    heading = hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+                    idle();
+                }
+            }
+        }
+
+        hardwareClass.powerLeft(0.0);
+        hardwareClass.powerRight(0.0);
+
+    }
+
+    /**
+     * Drives off balancing stone and in-front of the correct column
+     * Does NOT turn
+     */
+    void driveToColumn(double speed) {
+
+        if(hardwareClass.alliance == Alliance.BLUE)
+            speed = -speed;
+
+        float heading;
+
+        float targetHeading = 0;
+
+        double powerChangePerDegree = 0.001;
+
+        double leftPower = speed;
+        double rightPower = speed;
+
+        {
+            int encoderValue = hardwareClass.leftFront.getCurrentPosition() + hardwareClass.rightFront.getCurrentPosition();
+            while (Math.abs(encoderValue) < countsToColumn && opModeIsActive()) {
+
+                heading = hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+
+                leftPower = Range.clip(speed - ((heading - targetHeading) * powerChangePerDegree), -1.0, 1.0);
+                rightPower = Range.clip(speed + ((heading - targetHeading) * powerChangePerDegree), -1.0, 10);
+
+                hardwareClass.powerLeft(leftPower);
+                hardwareClass.powerRight(rightPower);
+
+                encoderValue = hardwareClass.leftFront.getCurrentPosition() + hardwareClass.rightFront.getCurrentPosition();
+
+                idle();
+            }
+        }
+        hardwareClass.powerLeft(0.0);
+        hardwareClass.powerRight(0.0);
+    }
+
+    void initVuforia(){
+        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
+
+        parameters.vuforiaLicenseKey = "AXi/CxP/////AAAAGV4xMjmD2EwntmuvBtxZnj8AOji5oAG2lxjzOJIGA9IASLd1EtX7KzZ6BpH6J0FWgEcjd8O/6mWD1rvLoAZ1R3KJcxH/xss+scSbd/U8d7/cZDupryfSH7lbRv94ZmPPwduAaQOkxyZfX0Gv+IsMUtIGqTZ5WIHYpqRSHIsGQQ6nlslCi5x/NRu0tnV1t6YgX6svoenYGXpbktnCYZB5BwO7OTfw7XrMMWtqSCJrd3PZha8rgiN1VvqvdEok//H0d9Vh5pnAMa8XwMEXx0N/0V1uEGUEcQvQA+fK7zghPqxjiXBQoZxcUUGkSbNGaIfTPBEoNoOi8QzHo4N6QN1TrgLnJW9J6tgbz9xzTpnRahqU";
+
+        /**
+         * use front camera as it's the selfie-cam
+         */
+        parameters.cameraDirection = VuforiaLocalizer.CameraDirection.FRONT;
+        this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
+
+        VuforiaTrackables relicTrackables = this.vuforia.loadTrackablesFromAsset("RelicVuMark");
+        relicTemplate = relicTrackables.get(0);
+        relicTemplate.setName("relicVuMarkTemplate"); // can help in debugging; otherwise not necessary
+    }
+}

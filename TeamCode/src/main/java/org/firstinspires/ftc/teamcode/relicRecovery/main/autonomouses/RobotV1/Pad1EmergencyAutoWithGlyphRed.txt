@@ -1,0 +1,65 @@
+package org.firstinspires.ftc.teamcode.relicRecovery.main.autonomouses.RobotV1;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
+import org.firstinspires.ftc.teamcode.relicRecovery.main.hardware.HardwareClass;
+
+/**
+ * Created by recharged on 11/16/17.
+ */
+
+//@Autonomous(name = "Pad1EmergencyAutoWithGlyphRed")
+@Disabled
+public class Pad1EmergencyAutoWithGlyphRed extends LinearOpMode{
+    HardwareClass hardwareClass;
+    public void runOpMode() throws InterruptedException{
+        hardwareClass = new HardwareClass(this);
+        hardwareClass.init(true);
+        waitForStart();
+
+        hardwareClass.leftClaw.setPosition(hardwareClass.leftClawGrabDelta);
+        hardwareClass.rightClaw.setPosition(hardwareClass.rightClawGrabDelta);
+
+        idle();
+
+        hardwareClass.powerLeft(0.3);
+        hardwareClass.powerRight(0.3);
+        while(opModeIsActive() && hardwareClass.leftFront.getCurrentPosition() + hardwareClass.rightFront.getCurrentPosition() < 5200);
+        hardwareClass.powerLeft(0.0);
+        hardwareClass.powerRight(0.0);
+
+        idle();
+
+        hardwareClass.powerRight(-0.3);
+        while(opModeIsActive() && hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle > -85);
+        hardwareClass.powerRight(0.0);
+
+        idle();
+
+        sleep(1000);
+        hardwareClass.powerLeft(0.3);
+        hardwareClass.powerRight(0.3);
+        sleep(5000);
+        hardwareClass.powerLeft(0.0);
+        hardwareClass.powerRight(0.0);
+
+        idle();
+
+        hardwareClass.leftClaw.setPosition(hardwareClass.leftClawReleaseDelta);
+        hardwareClass.rightClaw.setPosition(hardwareClass.rightClawReleaseDelta);
+        sleep(2000);
+
+        idle();
+
+        hardwareClass.powerLeft(-0.8);
+        hardwareClass.powerRight(-0.8);
+        sleep(150);
+        hardwareClass.powerLeft(0.0);
+        hardwareClass.powerRight(0.0);
+    }
+}

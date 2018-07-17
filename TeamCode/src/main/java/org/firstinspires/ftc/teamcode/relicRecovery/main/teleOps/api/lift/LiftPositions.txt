@@ -1,0 +1,23 @@
+package org.firstinspires.ftc.teamcode.relicRecovery.main.teleOps.api.lift;
+
+/**
+ * Created by David on 10/15/2017.
+ */
+
+public enum LiftPositions {
+
+    DOWN(0, 0),
+    ROW1(0, 0),
+    ROW2(0, 0),
+    ROW3(0, 0),
+    ROW4(0, 0),
+    MANUAL_LEFTOVER(0, 0);
+
+    int verticalCounts;
+    int horizontalCounts;
+
+    LiftPositions(int verticalCounts, int horizontalCounts) {
+        this.verticalCounts = verticalCounts;
+        this.horizontalCounts = horizontalCounts;
+    }
+}

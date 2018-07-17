@@ -1,0 +1,238 @@
+package org.firstinspires.ftc.teamcode.relicRecovery.main.autonomouses.RobotV1;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.robotcore.external.ClassFactory;
+import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
+import org.firstinspires.ftc.robotcore.external.navigation.RelicRecoveryVuMark;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
+import org.firstinspires.ftc.teamcode.relicRecovery.Alliance;
+import org.firstinspires.ftc.teamcode.relicRecovery.main.hardware.HardwareClass;
+
+/**
+ * Created by recharged on 11/4/17.
+ */
+
+//@Autonomous(name = "Pad2_55PTS_JewelParkCorrectColumn")
+@Disabled
+public class Pad2_55PTS_JewelParkCorrectColumn extends LinearOpMode {
+    OpenGLMatrix lastLocation = null;
+    /**
+     * {@link #vuforia} is the variable we will use to store our instance of the Vuforia
+     * localization engine.
+     */
+    VuforiaLocalizer vuforia;
+    VuforiaTrackable relicTemplate;
+    RelicRecoveryVuMark vuMark;
+
+    double startAngle;
+
+    HardwareClass hardwareClass;
+
+    @Override
+    public void runOpMode() throws InterruptedException {
+
+        hardwareClass = new HardwareClass(this);
+
+        hardwareClass.alliance = Alliance.NUETRAL;
+        /**
+         * Input alliance
+         */
+
+        while (!isStarted() || opModeIsActive()) {
+            telemetry.addData("", "Press A for red alliance");
+            telemetry.addData("", "Press B for blue alliance");
+            telemetry.addData("", "Alliance = " + hardwareClass.alliance == null ? "null" : hardwareClass.alliance.name());
+            telemetry.addData("", hardwareClass.alliance == null ? "Input alliance before finalizing" : "Press x to finalize");
+            telemetry.update();
+
+            if (gamepad1.a)
+                hardwareClass.alliance = Alliance.RED;
+            if (gamepad1.b)
+                hardwareClass.alliance = Alliance.BLUE;
+
+            if (gamepad1.x && hardwareClass.alliance != null)
+                break;
+        }
+
+        hardwareClass.init(true);
+
+        startAngle = hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+
+        hardwareClass.glyphLift.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        initVuforia();
+
+        waitForStart();
+
+        checkVuMark();
+
+        vuMark = RelicRecoveryVuMark.LEFT; // comment this line before competition
+
+        if(vuMark == null || vuMark == RelicRecoveryVuMark.UNKNOWN)
+            while(opModeIsActive())
+                idle();
+
+        if (hardwareClass.alliance == Alliance.NUETRAL)
+            while (opModeIsActive())
+                idle();
+
+        hardwareClass.leftClaw.setPosition(hardwareClass.leftClawGrabDelta);
+        hardwareClass.rightClaw.setPosition(hardwareClass.rightClawGrabDelta);
+
+        sleep(2000);
+
+        {
+            float angle = 60f / 360f + 0.0f;
+            int liftPosition = (int)(angle * 1120 * 2);
+            hardwareClass.glyphLift.setTargetPosition(liftPosition);
+            idle();
+        }
+        {
+            ElapsedTime timer = new ElapsedTime();
+            timer.reset();
+            boolean reachedPos = false;
+            while(timer.milliseconds() < 2000 && opModeIsActive() || !reachedPos){
+                hardwareClass.powerLift(0.3);
+                if(!hardwareClass.glyphLift.isBusy())
+                    reachedPos = true;
+                idle();
+            }
+        }
+
+        /*
+        while(opModeIsActive()){
+            telemetry.addData("hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZXZ, AngleUnit.DEGREES).firstAngle = ", hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle);
+            telemetry.update();
+        }
+        */
+
+        if (hardwareClass.alliance == Alliance.RED)
+            red();
+        else
+            blue();
+    }
+
+    void red() {
+        /**
+         * Drive off ramp
+         */
+        hardwareClass.powerLeft(0.5);
+        hardwareClass.powerRight(0.5);
+        while (opModeIsActive() && hardwareClass.leftFront.getCurrentPosition() + hardwareClass.rightFront.getCurrentPosition() < 2200)
+            idle();
+        hardwareClass.powerLeft(0.0);
+        hardwareClass.powerRight(0.0);
+
+        /**
+         * turn to run against wall
+         */
+
+        {
+            hardwareClass.powerLeft(-0.3);
+            hardwareClass.powerRight(0.3);
+            while (opModeIsActive() && hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle < 85){
+                telemetry.addData("hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZXZ, AngleUnit.DEGREES).firstAngle = ", hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZXZ, AngleUnit.DEGREES).firstAngle);
+                telemetry.update();
+            }
+            hardwareClass.powerLeft(0.0);
+            hardwareClass.powerRight(0.0);
+        }
+
+        /**
+         * "gently" readjust against wall
+         */
+
+        hardwareClass.powerLeft(-0.3);
+        hardwareClass.powerRight(-0.3);
+        sleep(3000);
+        hardwareClass.powerLeft(0.0);
+        hardwareClass.powerRight(0.0);
+        sleep(1000);
+
+        startAngle = hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+
+        /**
+         * drive to column
+         */
+        {
+            hardwareClass.resetDriveEncoders();
+
+            int target = 0;
+
+            if(vuMark == RelicRecoveryVuMark.LEFT)
+                target = 2000;
+            else if(vuMark == RelicRecoveryVuMark.CENTER)
+                target = 7000;
+            else if(vuMark == RelicRecoveryVuMark.RIGHT)
+                target = 1100;
+
+            hardwareClass.powerLeft(0.5);
+            hardwareClass.powerRight(0.5);
+            while (opModeIsActive() && hardwareClass.leftFront.getCurrentPosition() + hardwareClass.rightFront.getCurrentPosition() < 2700)
+                idle();
+            hardwareClass.powerLeft(0.0);
+            hardwareClass.powerRight(0.0);
+        }
+        /**
+         * Turn and Dump
+         */
+        hardwareClass.powerRight(-0.3);
+        while(opModeIsActive() && hardwareClass.imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle - startAngle > -83)
+            idle();
+        hardwareClass.powerRight(0.0);
+    }
+
+    void blue() {
+        sleep(5000);
+    }
+
+    void checkVuMark() {
+        telemetry.addLine("checking vumark");
+        telemetry.update();
+        for(int i = 0; i<5; i++){
+            vuMark = RelicRecoveryVuMark.from(relicTemplate);
+            if(vuMark != null)
+                break;
+            if(!opModeIsActive())
+                break;
+            telemetry.addData("times through loop ", i);
+            telemetry.update();
+        }
+        telemetry.addLine("checked mark " + vuMark.toString());
+        telemetry.update();
+    }
+
+    void initVuforia(){
+        telemetry.addLine("vuforia initiating");
+        telemetry.update();
+
+        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
+
+        parameters.vuforiaLicenseKey = "AXi/CxP/////AAAAGV4xMjmD2EwntmuvBtxZnj8AOji5oAG2lxjzOJIGA9IASLd1EtX7KzZ6BpH6J0FWgEcjd8O/6mWD1rvLoAZ1R3KJcxH/xss+scSbd/U8d7/cZDupryfSH7lbRv94ZmPPwduAaQOkxyZfX0Gv+IsMUtIGqTZ5WIHYpqRSHIsGQQ6nlslCi5x/NRu0tnV1t6YgX6svoenYGXpbktnCYZB5BwO7OTfw7XrMMWtqSCJrd3PZha8rgiN1VvqvdEok//H0d9Vh5pnAMa8XwMEXx0N/0V1uEGUEcQvQA+fK7zghPqxjiXBQoZxcUUGkSbNGaIfTPBEoNoOi8QzHo4N6QN1TrgLnJW9J6tgbz9xzTpnRahqU";
+
+        /**
+         * use front camera as it's the selfie-cam
+         */
+        parameters.cameraDirection = VuforiaLocalizer.CameraDirection.FRONT;
+        this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
+
+        VuforiaTrackables relicTrackables = this.vuforia.loadTrackablesFromAsset("RelicVuMark");
+        relicTemplate = relicTrackables.get(0);
+        relicTemplate.setName("relicVuMarkTemplate"); // can help in debugging; otherwise not necessary
+        relicTrackables.activate();
+
+        telemetry.addLine("vuforia initiated");
+        telemetry.update();
+    }
+}
